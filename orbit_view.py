@@ -24,6 +24,8 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
 
+from common import RISK_FLOOR
+
 EARTH_IMAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "blue_marble_2048.jpg")
 MU = 398600.4418          # km^3 / s^2
 R_E = 6371.0              # km
@@ -86,7 +88,11 @@ def _fmt_t(seconds_before):
 
 
 def pc_text(log10_pc):
-    """Collision probability as a percentage, from log10 Pc. For example -4 gives '0.0100%'."""
+    """Collision probability as a percentage, from log10 Pc. For example -4 gives '0.0100%'.
+    Below Pc 1e-10 (the floor used for modelling; the data goes down to 1e-30) it reads 'below 1e-8%'
+    (words, not '<', because the text also goes into HTML cards and Plotly hover labels)."""
+    if float(log10_pc) < RISK_FLOOR:
+        return f"below {100 * 10.0 ** RISK_FLOOR:.0e}%".replace("e-0", "e-")
     pct = 100.0 * 10.0 ** min(float(log10_pc), 0.0)
     if pct >= 10:
         return f"{pct:.1f}%"
@@ -98,8 +104,14 @@ def pc_text(log10_pc):
 
 
 def pc_odds(log10_pc):
-    """The same probability as odds, for example 'about 1 in 10,000'."""
+    """The same probability as odds, for example 'about 1 in 10,000' or 'about 1 in 3.2 billion'."""
+    if float(log10_pc) < RISK_FLOOR:
+        return "less than 1 in 10 billion"
     n = 10.0 ** (-min(float(log10_pc), 0.0))
+    if n >= 1e9:
+        return f"about 1 in {n / 1e9:.1f} billion"
+    if n >= 1e6:
+        return f"about 1 in {n / 1e6:.1f} million"
     return f"about 1 in {n:,.0f}" if n >= 2 else "about 1 in 1"
 
 
