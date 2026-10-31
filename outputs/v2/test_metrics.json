@@ -1,0 +1,134 @@
+{
+  "test events": 2167,
+  "events scored (2+ CDMs)": 2092,
+  "events not forecastable (only 1 CDM)": 75,
+  "feature set": "B suggested + latest Pc and trends",
+  "thresholds": {
+    "P(critical)": 0.19,
+    "P(elevated or worse)": 0.23
+  },
+  "model": {
+    "events": 2092,
+    "true critical": 179,
+    "critical recall": 0.8994413407821229,
+    "critical precision": 0.7815533980582524,
+    "critical F2": 0.8731019522776573,
+    "criticals called safe": 2,
+    "safe events flagged": 0.047685834502103785,
+    "accuracy": 0.9273422562141491,
+    "macro F1": 0.8845869397667191,
+    "confusion (rows true, cols pred: safe, elevated, critical)": [
+      [
+        1358,
+        66,
+        2
+      ],
+      [
+        23,
+        421,
+        43
+      ],
+      [
+        2,
+        16,
+        161
+      ]
+    ]
+  },
+  "persistence baseline": {
+    "events": 2092,
+    "true critical": 179,
+    "critical recall": 0.8659217877094972,
+    "critical precision": 0.8516483516483516,
+    "critical F2": 0.8630289532293987,
+    "criticals called safe": 3,
+    "safe events flagged": 0.03506311360448808,
+    "accuracy": 0.9373804971319312,
+    "macro F1": 0.9003251628239471,
+    "confusion (rows true, cols pred: safe, elevated, critical)": [
+      [
+        1376,
+        48,
+        2
+      ],
+      [
+        32,
+        430,
+        25
+      ],
+      [
+        3,
+        21,
+        155
+      ]
+    ]
+  },
+  "probabilities": {
+    "log loss": 0.18167540431022644,
+    "Brier (multiclass)": 0.09351486960112557
+  },
+  "regression RMSE": {
+    "final log10 Pc, model": 0.7057377238823251,
+    "final log10 Pc, persistence": 0.6647556620666922,
+    "final log10(miss+1 m), model": 0.1543475362268392,
+    "final log10(miss+1 m), persistence": 0.16808189350425365
+  },
+  "all updates": {
+    "model": {
+      "events": 22317,
+      "true critical": 1957,
+      "critical recall": 0.7935615738375064,
+      "critical precision": 0.6252012882447665,
+      "critical F2": 0.7530062063615206,
+      "criticals called safe": 38,
+      "safe events flagged": 0.11742500842601955,
+      "accuracy": 0.8440650625084016,
+      "macro F1": 0.7781627408390617,
+      "confusion (rows true, cols pred: safe, elevated, critical)": [
+        [
+          13093,
+          1630,
+          112
+        ],
+        [
+          515,
+          4191,
+          819
+        ],
+        [
+          38,
+          366,
+          1553
+        ]
+      ]
+    },
+    "persistence baseline": {
+      "events": 22317,
+      "true critical": 1957,
+      "critical recall": 0.7322432294328053,
+      "critical precision": 0.7021068103870651,
+      "critical F2": 0.726010740703212,
+      "criticals called safe": 64,
+      "safe events flagged": 0.09106841927873273,
+      "accuracy": 0.8609580140699915,
+      "macro F1": 0.7962980231519176,
+      "confusion (rows true, cols pred: safe, elevated, critical)": [
+        [
+          13484,
+          1244,
+          107
+        ],
+        [
+          727,
+          4297,
+          501
+        ],
+        [
+          64,
+          460,
+          1433
+        ]
+      ]
+    }
+  }
+}

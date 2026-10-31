@@ -1,0 +1,121 @@
+{
+  "feature set": "B suggested + latest Pc and trends",
+  "features": [
+    "time_to_tca",
+    "miss_distance",
+    "relative_speed",
+    "relative_position_r",
+    "relative_position_t",
+    "relative_position_n",
+    "c_object_type",
+    "c_sigma_r",
+    "t_sigma_r",
+    "max_risk_estimate",
+    "F10",
+    "AP",
+    "risk_c",
+    "tier_now",
+    "tier_max",
+    "n_cdms",
+    "obs_span",
+    "risk_delta",
+    "risk_slope",
+    "risk_max",
+    "risk_first",
+    "log_miss",
+    "miss_delta",
+    "miss_slope",
+    "miss_min",
+    "miss_first",
+    "mre_delta",
+    "mre_slope",
+    "mre_max"
+  ],
+  "categories": [
+    "DEBRIS",
+    "PAYLOAD",
+    "ROCKET BODY",
+    "TBA",
+    "UNKNOWN"
+  ],
+  "temperature": 1.1203318720808624,
+  "p_critical_cut": 0.19,
+  "p_elevated_cut": 0.23,
+  "min_tca_days": 2.0,
+  "risk_floor": -10.0,
+  "xgb_params": {
+    "n_estimators": 400,
+    "learning_rate": 0.05,
+    "max_depth": 6,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "tree_method": "hist",
+    "enable_categorical": true,
+    "n_jobs": -1,
+    "random_state": 0
+  },
+  "cv_out_of_fold": {
+    "model": {
+      "events": 11445,
+      "true critical": 805,
+      "critical recall": 0.8968944099378882,
+      "critical precision": 0.7397540983606558,
+      "critical F2": 0.8603431839847474,
+      "criticals called safe": 21,
+      "safe events flagged": 0.056126669029894834,
+      "accuracy": 0.9144604630843163,
+      "macro F1": 0.8529983613620686,
+      "confusion (rows true, cols pred: safe, elevated, critical)": [
+        [
+          7988,
+          455,
+          20
+        ],
+        [
+          187,
+          1756,
+          234
+        ],
+        [
+          21,
+          62,
+          722
+        ]
+      ]
+    },
+    "persistence baseline": {
+      "events": 11445,
+      "true critical": 805,
+      "critical recall": 0.8397515527950311,
+      "critical precision": 0.8164251207729468,
+      "critical F2": 0.8349802371541502,
+      "criticals called safe": 22,
+      "safe events flagged": 0.04052936311000827,
+      "accuracy": 0.9314110965487112,
+      "macro F1": 0.8767495547537959,
+      "confusion (rows true, cols pred: safe, elevated, critical)": [
+        [
+          8120,
+          315,
+          28
+        ],
+        [
+          189,
+          1864,
+          124
+        ],
+        [
+          22,
+          107,
+          676
+        ]
+      ]
+    },
+    "regression RMSE": {
+      "final log10 Pc (floored at -10), model": 0.775987353939206,
+      "final log10 Pc, persistence": 0.761394183557134,
+      "final log10(miss+1 m), model": 0.18503840591225898,
+      "final log10(miss+1 m), persistence": 0.2114002857893493
+    }
+  }
+}

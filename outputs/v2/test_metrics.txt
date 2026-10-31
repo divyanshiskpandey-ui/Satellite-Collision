@@ -1,0 +1,36 @@
+Test: 2,167 events, 2,092 scored, 75 with a single CDM (no forecast possible).
+Feature set: B suggested + latest Pc and trends. Thresholds: {'P(critical)': 0.19, 'P(elevated or worse)': 0.23}
+
+MODEL, per event (forecast of the final CDM's tier from earlier CDMs):
+  events: 2092
+  true critical: 179
+  critical recall: 0.899
+  critical precision: 0.782
+  critical F2: 0.873
+  criticals called safe: 2
+  safe events flagged: 0.048
+  accuracy: 0.927
+  macro F1: 0.885
+  confusion (rows true, cols pred: safe, elevated, critical): [[1358, 66, 2], [23, 421, 43], [2, 16, 161]]
+
+PERSISTENCE BASELINE (tier rule on the latest CDM received):
+  events: 2092
+  true critical: 179
+  critical recall: 0.866
+  critical precision: 0.852
+  critical F2: 0.863
+  criticals called safe: 3
+  safe events flagged: 0.035
+  accuracy: 0.937
+  macro F1: 0.9
+  confusion (rows true, cols pred: safe, elevated, critical): [[1376, 48, 2], [32, 430, 25], [3, 21, 155]]
+
+Probabilities:
+  log loss: 0.182
+  Brier (multiclass): 0.094
+
+Regression RMSE:
+  final log10 Pc, model: 0.706
+  final log10 Pc, persistence: 0.665
+  final log10(miss+1 m), model: 0.154
+  final log10(miss+1 m), persistence: 0.168

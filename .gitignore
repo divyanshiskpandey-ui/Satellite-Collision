@@ -1,0 +1,6 @@
+data/
+__pycache__/
+.venv/
+.shots/
+*.tmp
+.pytest_cache/
