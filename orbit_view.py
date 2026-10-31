@@ -628,13 +628,18 @@ def encounter_stats(rel_pos, rel_vel, C):
                 md_3d=float(np.sqrt(p @ np.linalg.solve(C, p))))
 
 
-def build_close_figure(tier, miss_m, rel_pos, rel_vel, sig, C=None):
-    """Animated fly-by in the target's RTN frame (metres): the debris moves along its relative path,
-    passes closest approach, and the 1σ / 3σ uncertainty ellipsoids (full covariance if given) are drawn
-    around its predicted position at closest approach."""
+def build_close_figure(tier, miss_m, rel_pos, rel_vel, sig, C=None, sat_speed=None):
+    """Animated fly-by (metres) in a local frame fixed at the closest-approach point, axes along the
+    satellite's radial / along-track / cross-track directions. Both objects move: the satellite along-track
+    at its orbital speed (sat_speed, m/s), the debris at the satellite's velocity plus the relative velocity.
+    Their separation is exactly the relative motion, so they pass at the miss distance at TCA. The 1σ / 3σ
+    uncertainty ellipsoids (full covariance if given) sit at the debris's predicted position at TCA.
+    Straight-line motion is accurate here: the animation spans only fractions of a second."""
     col = TIER_COL.get(tier, "#ffffff")
     rp, rv = np.array(rel_pos, float), np.array(rel_vel, float)
     speed = float(np.linalg.norm(rv))
+    v_sat = np.array([0.0, float(sat_speed or 0.0), 0.0])          # circular orbit: purely along-track
+    v_deb = v_sat + rv
     if C is not None:
         w, V = np.linalg.eigh(C)
         axes_len, rot = np.sqrt(w), V
@@ -643,52 +648,66 @@ def build_close_figure(tier, miss_m, rel_pos, rel_vel, sig, C=None):
     else:
         axes_len, rot = None, None
     scale = max(miss_m, 3 * float(axes_len.max()) if axes_len is not None else 0.0, 1.0) * 1.5
-    span = 2 * scale / speed
+    # time window short enough that the fastest object stays near the encounter, so the miss stays visible
+    span = 2.5 * scale / max(speed, float(np.linalg.norm(v_sat)), float(np.linalg.norm(v_deb)))
     taus = np.linspace(-span, span, 61)
-    path = rp[None, :] + taus[:, None] * rv[None, :]
+    sat = taus[:, None] * v_sat[None, :]
+    deb = rp[None, :] + taus[:, None] * v_deb[None, :]
 
     data = []
     if axes_len is not None:
-        for k, op, nm in ((3, 0.10, "3σ position uncertainty"), (1, 0.28, "1σ position uncertainty")):
+        for k, op, nm in ((3, 0.10, "3σ position uncertainty at TCA"), (1, 0.28, "1σ position uncertainty at TCA")):
             x, y, z = _sphere(1.0, 40)
             pts = np.stack([x, y, z], -1) * (k * axes_len) @ rot.T + rp
             data.append(go.Surface(x=pts[..., 0], y=pts[..., 1], z=pts[..., 2], surfacecolor=np.zeros_like(x),
                                    colorscale=[[0, col], [1, col]], showscale=False, opacity=op, name=nm,
                                    hoverinfo="name", showlegend=True))
-    L = scale * 0.55                                  # RTN direction guides at the target
+    L = scale * 0.55                                  # direction guides at the closest-approach point
     for vec, lbl in (([L, 0, 0], "Radial"), ([0, L, 0], "Along-track"), ([0, 0, L], "Cross-track")):
         data.append(go.Scatter3d(x=[0, vec[0]], y=[0, vec[1]], z=[0, vec[2]], mode="lines+text", text=["", lbl],
                                  textfont=dict(color=MUTED, size=11), line=dict(color=MUTED, width=2),
                                  hoverinfo="skip", showlegend=False))
     data += [
-        go.Scatter3d(x=path[:, 0], y=path[:, 1], z=path[:, 2], mode="lines", name="Debris path (relative)",
-                     line=dict(color=COL_B, width=4), opacity=0.6, hoverinfo="skip"),
-        go.Scatter3d(x=[0, rp[0]], y=[0, rp[1]], z=[0, rp[2]], mode="lines+text", name="Miss vector",
+        go.Scatter3d(x=sat[:, 0], y=sat[:, 1], z=sat[:, 2], mode="lines", name="Satellite path",
+                     line=dict(color=COL_A, width=3), opacity=0.45, hoverinfo="skip"),
+        go.Scatter3d(x=deb[:, 0], y=deb[:, 1], z=deb[:, 2], mode="lines", name="Debris path",
+                     line=dict(color=COL_B, width=3), opacity=0.45, hoverinfo="skip"),
+        go.Scatter3d(x=[0, rp[0]], y=[0, rp[1]], z=[0, rp[2]], mode="lines+text", name="Miss vector at TCA",
                      text=["", f"{miss_m:,.0f} m"], textposition="top center", textfont=dict(color=INK, size=13),
                      line=dict(color=col, width=5, dash="dash"), hoverinfo="skip"),
-        go.Scatter3d(x=[0], y=[0], z=[0], mode="markers+text", text=["Satellite"], textposition="bottom center",
-                     textfont=dict(color=COL_A), name="Satellite (target)",
-                     marker=dict(size=10, color=COL_A, symbol="diamond", line=dict(color="white", width=1)),
-                     hovertemplate="Satellite (origin)<extra></extra>"),
-        go.Scatter3d(x=[rp[0]], y=[rp[1]], z=[rp[2]], mode="markers", name="Debris at closest approach",
+        go.Scatter3d(x=[0, rp[0]], y=[0, rp[1]], z=[0, rp[2]], mode="markers", name="Positions at TCA",
                      marker=dict(size=6, color=col, symbol="circle-open", line=dict(color=col, width=2)),
                      hovertemplate=f"Closest approach<br>Miss distance {miss_m:,.0f} m<br>"
                                    f"Relative speed {speed / 1000:.2f} km/s<extra></extra>"),
     ]
-    moving = len(data)
-    data += [go.Scatter3d(x=[path[0, 0]], y=[path[0, 1]], z=[path[0, 2]], mode="markers", name="Debris",
-                          marker=dict(size=9, color=COL_B, symbol="diamond", line=dict(color="white", width=1)),
-                          hoverinfo="name"),
-             go.Scatter3d(x=path[:1, 0], y=path[:1, 1], z=path[:1, 2], mode="lines", hoverinfo="skip",
-                          line=dict(color=COL_B, width=8), showlegend=False)]
+
+    def moving(i):
+        lo = max(0, i - 6)
+        return [go.Scatter3d(x=[sat[i, 0]], y=[sat[i, 1]], z=[sat[i, 2]]),
+                go.Scatter3d(x=sat[lo:i + 1, 0], y=sat[lo:i + 1, 1], z=sat[lo:i + 1, 2]),
+                go.Scatter3d(x=[deb[i, 0]], y=[deb[i, 1]], z=[deb[i, 2]]),
+                go.Scatter3d(x=deb[lo:i + 1, 0], y=deb[lo:i + 1, 1], z=deb[lo:i + 1, 2]),
+                go.Scatter3d(x=[sat[i, 0], deb[i, 0]], y=[sat[i, 1], deb[i, 1]], z=[sat[i, 2], deb[i, 2]])]
+
+    styles = [dict(mode="markers+text", text=["Satellite"], textposition="bottom center", textfont=dict(color=COL_A),
+                   name="Satellite (target)", hoverinfo="name",
+                   marker=dict(size=10, color=COL_A, symbol="diamond", line=dict(color="white", width=1))),
+              dict(mode="lines", line=dict(color=COL_A, width=8), hoverinfo="skip", showlegend=False),
+              dict(mode="markers+text", text=["Debris"], textposition="top center", textfont=dict(color=COL_B),
+                   name="Debris", hoverinfo="name",
+                   marker=dict(size=9, color=COL_B, symbol="diamond", line=dict(color="white", width=1))),
+              dict(mode="lines", line=dict(color=COL_B, width=8), hoverinfo="skip", showlegend=False),
+              dict(mode="lines", line=dict(color=INK, width=2, dash="dot"), name="Separation", hoverinfo="skip")]
+    first = len(data)
+    for tr, style in zip(moving(0), styles):
+        tr.update(**style)
+        data.append(tr)
 
     frames, steps = [], []
     for i, tau in enumerate(taus):
-        lo = max(0, i - 6)
-        frames.append(go.Frame(name=str(i), traces=[moving, moving + 1], data=[
-            go.Scatter3d(x=[path[i, 0]], y=[path[i, 1]], z=[path[i, 2]]),
-            go.Scatter3d(x=path[lo:i + 1, 0], y=path[lo:i + 1, 1], z=path[lo:i + 1, 2])]))
-        steps.append(dict(method="animate", label=f"TCA {tau * 1000:+.0f} ms",
+        sep = float(np.linalg.norm(deb[i] - sat[i]))
+        frames.append(go.Frame(name=str(i), traces=list(range(first, first + 5)), data=moving(i)))
+        steps.append(dict(method="animate", label=f"TCA {tau * 1000:+.0f} ms  ·  {sep:,.0f} m apart",
                           args=[[str(i)], dict(mode="immediate", transition=dict(duration=0),
                                                frame=dict(duration=0, redraw=True))]))
     ax = dict(backgroundcolor=BG, gridcolor=LINE, zerolinecolor=MUTED, color=MUTED, showspikes=False)
@@ -902,7 +921,9 @@ def render_orbit_section(row, cuts, show_orbit=True):
                     unsafe_allow_html=True)
                 t_fly, t_plane = st.tabs(["3D fly-by (to scale)", "Encounter plane"])
                 with t_fly:
-                    st.plotly_chart(build_close_figure(tier, miss_m, rel_pos, rel_vel, sig, C), width="stretch",
+                    st.plotly_chart(build_close_figure(tier, miss_m, rel_pos, rel_vel, sig, C,
+                                                      sat_speed=S["a_t"] * S["n_t"] * 1000.0),
+                                    width="stretch",
                                     key=f"flyby_{ev}", config=dict(displaylogo=False, scrollZoom=True))
                     st.caption("Press Play fly-by to watch the debris pass the satellite at the real relative speed "
                                "(the slider is in milliseconds from closest approach). Axes are metres in the "
