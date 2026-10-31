@@ -8,6 +8,8 @@ and flags the events that need **manoeuvre planning**.
 ![model](https://img.shields.io/badge/model-XGBoost-blue)
 ![app](https://img.shields.io/badge/dashboard-Streamlit-red)
 
+![Mission control: every event on a 3D Earth, coloured by forecast tier, with the countdown card for the selected event](docs/screenshots/dashboard.png)
+
 ---
 
 ## Contents
@@ -150,6 +152,11 @@ tier probabilities, not the forecast Pc, to flag events.
 | **Close approach** | key numbers (miss components, relative speed, how many σ the satellite sits from the debris's predicted position, crossing time); an **animated 3D fly-by** with full-covariance 1σ/3σ uncertainty ellipsoids; and the **encounter plane** used by conjunction analysts |
 | **Response plan** | a step-by-step checklist for the tier, with an along-track Δv estimate and adjustable lead times |
 
+| Approach simulator | Encounter plane |
+|---|---|
+| ![Satellite and debris moving towards closest approach, with the live time-to-collision slider](docs/screenshots/approach-simulator.png) | ![Encounter plane: the debris's predicted position, its 1σ/2σ/3σ uncertainty ellipses and the miss distance in σ](docs/screenshots/encounter-plane.png) |
+| Drag the slider or press Play; the satellite (T) and debris (D) move along their orbits and meet at the conjunction point. | Event 808: critical because its miss is 131 m (under 1 km), yet the satellite sits 23.9σ from the debris's predicted position, which is why its Pc is effectively zero. |
+
 ### All events
 
 Forecast Pc against forecast miss distance with the tier boundaries, and a full sortable table.
@@ -198,6 +205,7 @@ python tests/test_pipeline.py     # checks (also runs with pytest)
 ├── tests/test_pipeline.py    tier boundaries, no final-CDM leakage, grouped folds, saved metrics consistent
 ├── outputs/v2/               trained models, meta.json (features, thresholds), test predictions and metrics
 ├── assets/                   NASA Blue Marble Earth texture
+├── docs/screenshots/         images used in this README
 ├── .streamlit/config.toml    dark theme
 ├── requirements.txt
 └── data/                     (not committed) train_data.csv, test_data.csv
