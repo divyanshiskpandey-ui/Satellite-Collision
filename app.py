@@ -7,11 +7,12 @@ import pandas as pd
 import streamlit as st
 
 from common import CRIT_LOG_PC, CRIT_MISS_M, ELEV_LOG_PC, ELEV_MISS_M
-from orbit_view import (BG, CSS, TIER_COL, _fmt_dur, _fmt_t, build_event_orbit, build_fleet_globe, event_scene,
-                        pc_odds, pc_text, render_orbit_section)
+from orbit_view import (_fmt_dur, _fmt_t, build_event_orbit, build_fleet_globe, event_scene, pc_odds, pc_text,
+                        render_orbit_section)
+from style import CSS, ICON, SURFACE, TIER_COL, header, kpis, label, section, tier_legend
 
 OUT = "outputs/v2"
-st.set_page_config(page_title="Conjunction triage", page_icon="🛰️", layout="wide")
+st.set_page_config(page_title="Satellite Collision Risk Evaluator", page_icon="🛰️", layout="wide")
 alt.data_transformers.disable_max_rows()
 
 # status colours carry the tier (same in both themes); every use is paired with the tier name
@@ -21,24 +22,10 @@ TIER_SCALE = alt.Scale(domain=TIERS, range=[TIER_COL[t] for t in TIERS])
 BLUE, ORANGE = ("#3987e5", "#d95926") if DARK else ("#2a78d6", "#eb6834")
 RULE_INK, TRUTH_INK = ("#c3c2b7", "#f0efec") if DARK else ("#52514e", "#0b0b0b")
 SERIES_SCALE = alt.Scale(domain=["observed (CDM)", "forecast of final CDM"], range=[BLUE, ORANGE])
-ICON = {"critical": "▲", "elevated": "●", "safe": "○"}
 ORDER = {"critical": 0, "elevated": 1, "safe": 2}
 DECISION_H = 24.0       # decision deadline shown on the front page, hours before closest approach
 
-HERO_CSS = """
-<style>
-.hero { background:#0e1626; border:1px solid #1d2a44; border-left:6px solid var(--tier); border-radius:12px;
-        padding:16px 18px; margin-bottom:10px; }
-.hero .lbl { color:var(--tier); font-weight:700; letter-spacing:.05em; text-transform:uppercase; font-size:.85rem; }
-.hero .clock { color:#eaf1ff; font-weight:700; font-size:2.7rem; line-height:1.1; font-variant-numeric:tabular-nums; }
-.hero .sub { color:#8393b3; font-size:.88rem; margin-top:2px; }
-.hero-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
-.hero-grid div { background:#0b1220; border:1px solid #1d2a44; border-radius:8px; padding:8px 10px; }
-.hero-grid b { display:block; color:#eaf1ff; font-size:1.05rem; font-variant-numeric:tabular-nums; }
-.hero-grid span { color:#8393b3; font-size:.78rem; }
-.ico { color:var(--tier); }
-</style>
-"""
+BG = SURFACE            # chart mark outlines match the panel colour
 
 
 # ---------------------------------------------------------------- data
@@ -86,15 +73,18 @@ def why(r):
 lo = float(np.ceil(latest["time_to_tca"].min() * 4) / 4)
 hi = float(np.ceil(latest["time_to_tca"].max() * 4) / 4)
 with st.sidebar:
-    st.header("Controls")
+    st.markdown(CSS + label("Mission controls"), unsafe_allow_html=True)
     window = st.slider("Window: days to closest approach", lo, hi, min(lo + 1.0, hi), 0.25,
                        help="Uses each event's most recent CDM. The test data stops 2 days before closest approach.")
     show_safe = st.checkbox("Show safe events on the globe", value=True)
     show_truth = st.checkbox("Show true final values (test set, evaluation only)", value=False)
     st.divider()
-    st.markdown(f"**Model:** XGBoost, feature set *{meta['feature set']}*  \n"
-                f"**Manoeuvre flag:** P(critical) ≥ {meta['p_critical_cut']:.0%}  \n"
-                f"**Elevated:** P(elevated or critical) ≥ {meta['p_elevated_cut']:.0%}")
+    st.markdown(label("Model") + f'<div class="mx-chip" style="margin-bottom:8px"><span>CLASSIFIER</span>'
+                f'<b>XGBoost · set {meta["feature set"].split()[0]}</b></div>'
+                f'<div class="mx-chip" style="margin-bottom:8px"><span>MANOEUVRE FLAG</span>'
+                f'<b>P(critical) ≥ {meta["p_critical_cut"]:.0%}</b></div>'
+                f'<div class="mx-chip" style="margin-bottom:8px"><span>ELEVATED</span>'
+                f'<b>P(elev. or crit.) ≥ {meta["p_elevated_cut"]:.0%}</b></div>', unsafe_allow_html=True)
     st.caption("Click a marker on the globe or a point on the countdown board for an event's details, pick an event "
                "by number, or select a row in the warnings queue. The approach simulator further down animates the "
                "approach as you drag its slider.")
@@ -154,6 +144,12 @@ def event_card(r, eid, clock=None, clock_sub=None):
             + "</div></div></div>")
 
 
+def probs_line(r):
+    return ('<div class="mx-probs">' + "".join(
+        f'<span><span style="color:{TIER_COL[t]}">{ICON[t]}</span> {t} <b>{r[f"p_{t}"]:.0%}</b></span>'
+        for t in ("safe", "elevated", "critical")) + "</div>")
+
+
 def prob_bar(r):
     probs = pd.DataFrame({"tier": TIERS[::-1], "p": [r["p_safe"], r["p_elevated"], r["p_critical"]], "o": [0, 1, 2]})
     return alt.Chart(probs).mark_bar(height=26, stroke=BG, strokeWidth=2).encode(
@@ -182,13 +178,12 @@ def spark(eid, obs_col, fc_col, title, log):
 @st.dialog("Event details", width="large")
 def event_dialog(eid):
     r = ranked.set_index("event_id").loc[eid]
-    st.markdown(CSS + HERO_CSS + event_card(r, eid), unsafe_allow_html=True)
-    st.altair_chart(prob_bar(r), width="stretch")
-    st.markdown(f"○ safe **{r['p_safe']:.0%}** · ● elevated **{r['p_elevated']:.0%}** · "
-                f"▲ critical **{r['p_critical']:.0%}**")
+    st.markdown(CSS + event_card(r, eid), unsafe_allow_html=True)
+    st.altair_chart(theme=None, altair_chart=prob_bar(r), width="stretch")
+    st.markdown(probs_line(r), unsafe_allow_html=True)
     c1, c2 = st.columns(2)
-    c1.altair_chart(spark(eid, "risk", "pred_final_risk", "log10 Pc", False), width="stretch")
-    c2.altair_chart(spark(eid, "miss_distance", "pred_final_miss", "miss (m)", True), width="stretch")
+    c1.altair_chart(theme=None, altair_chart=spark(eid, "risk", "pred_final_risk", "log10 Pc", False), width="stretch")
+    c2.altair_chart(theme=None, altair_chart=spark(eid, "miss_distance", "pred_final_miss", "miss (m)", True), width="stretch")
     st.caption("Latitude and altitude are from the CDM; the globe's longitude is illustrative because the data has none.")
     if st.button("Open the full analysis below", type="primary", width="stretch"):
         st.rerun()
@@ -206,11 +201,12 @@ def pick_from_globe():
 
 
 # ---------------------------------------------------------------- header
-st.markdown(CSS + HERO_CSS, unsafe_allow_html=True)
-st.title("🛰️ Satellite conjunction triage")
-st.caption("Forecasts each event's final risk tier from the CDMs received so far. Critical: Pc ≥ 1e-4 or miss < 1 km. "
-           "Elevated: Pc ≥ 1e-6 or miss 1–5 km. Safe: otherwise. Decision support only: a qualified analyst decides "
-           "on any manoeuvre.")
+st.markdown(CSS + header(
+    "Satellite Collision Risk Evaluator", "Conjunction assessment · decision support",
+    "Forecasts each event's final risk tier from the CDMs received so far. A qualified analyst decides on any manoeuvre.",
+    [("DATASET", f"Test set · {metrics['events scored (2+ CDMs)']:,} events"),
+     ("MODEL", f"XGBoost · set {meta['feature set'].split()[0]}"),
+     ("CRITICAL RECALL", f"{metrics['model']['critical recall']:.1%}")]) + tier_legend(), unsafe_allow_html=True)
 
 tab_main, tab_all, tab_eval = st.tabs(["Mission control", "All events", "Evaluation & method"])
 
@@ -218,57 +214,56 @@ with tab_main:
     n_crit = int(win["maneuver_flag"].sum())
     flagged = win[win["pred_tier"] != "safe"]
     nxt = _fmt_t(flagged["time_to_tca"].min() * 86400) if len(flagged) else "none"
-    tiles = [(f"{len(win):,}", f"events within {window:g} days", None),
-             (f"{n_crit}", "manoeuvre planning (forecast critical)", "critical"),
-             (f"{int((win['pred_tier'] == 'elevated').sum())}", "forecast elevated", "elevated"),
-             (f"{int(win['rule_flip'].sum())}", "tier changed since previous CDM", None),
-             (nxt, "next flagged closest approach", None)]
-    st.markdown('<div class="ov"><div class="ov-strip">' + "".join(
-        f'<div class="ov-stat"><b>{v}</b><span>'
-        + (f'<span class="ico" style="--tier:{TIER_COL[t]}">{ICON[t]}</span> ' if t else "") + f"{lbl}</span></div>"
-        for v, lbl, t in tiles) + "</div></div>", unsafe_allow_html=True)
+    st.markdown(kpis([
+        ("Events in window", f"{len(win):,}", f"closest approach within {window:g} days", None),
+        ("Manoeuvre planning", f"{n_crit}", "forecast critical", "critical"),
+        ("Elevated", f"{int((win['pred_tier'] == 'elevated').sum())}", "monitor closely", "elevated"),
+        ("Tier changes", f"{int(win['rule_flip'].sum())}", "since the previous CDM", None),
+        ("Next flagged TCA", nxt, "soonest critical or elevated", None)]), unsafe_allow_html=True)
 
     if not ids:
         st.info("No events in this window. Widen it in the sidebar.")
         st.stop()
 
     # ---- globe with every event (click a marker for its details) + countdown card for the focus event
-    label = ranked.set_index("event_id")
+    label_df = ranked.set_index("event_id")
+    st.markdown(section("01", "Fleet overview", "click a marker for details · drag to rotate"), unsafe_allow_html=True)
     g_col, f_col = st.columns([3, 2], gap="large")
     with f_col:
         focus = st.selectbox("Event number", all_ids, key="focus",
-                             format_func=lambda e: f"{e} · {label.at[e, 'tier']} · {label.at[e, 'countdown']}",
+                             format_func=lambda e: f"{e} · {label_df.at[e, 'tier']} · {label_df.at[e, 'countdown']}",
                              help="Type a number to search, or click a marker on the globe. Events in the window "
                                   "come first, most urgent first.")
-        r = label.loc[focus]
+        r = label_df.loc[focus]
         st.markdown(event_card(r, focus), unsafe_allow_html=True)
-        st.markdown("**Forecast final tier probabilities**")
-        st.altair_chart(prob_bar(r), width="stretch")
-        st.markdown(f"○ safe **{r['p_safe']:.0%}** · ● elevated **{r['p_elevated']:.0%}** · "
-                    f"▲ critical **{r['p_critical']:.0%}**")
+        st.markdown(label("Forecast final tier probabilities"), unsafe_allow_html=True)
+        st.altair_chart(theme=None, altair_chart=prob_bar(r), width="stretch")
+        st.markdown(probs_line(r), unsafe_allow_html=True)
 
     with g_col:
         g = win if show_safe else win[win["pred_tier"] != "safe"]
         if focus not in set(g["event_id"]):
-            g = pd.concat([g, label.loc[[focus]].reset_index()], ignore_index=True)
+            g = pd.concat([g, label_df.loc[[focus]].reset_index()], ignore_index=True)
         g = g.assign(lat_deg=g["geocentric_latitude"], inc_deg=g["t_j2k_inc"], tier=g["pred_tier"],
                      hover=[f"<b>Event {e}</b> · {ICON[t]} {t}<br>P(critical) {p:.0%} · {c}<br>"
                             f"forecast Pc {fp} · miss {m:,.0f} m<br><i>click for details</i>"
                             for e, t, p, c, fp, m in zip(g["event_id"], g["pred_tier"], g["p_critical"],
                                                          g["countdown"], g["forecast_pc"], g["pred_final_miss"])])
-        st.plotly_chart(build_fleet_globe(g, focus), width="stretch", key="globe", on_select=pick_from_globe,
-                        selection_mode="points", config=dict(displaylogo=False, scrollZoom=True))
+        with st.container(border=True, key="panel_globe"):
+            st.plotly_chart(build_fleet_globe(g, focus), width="stretch", key="globe", on_select=pick_from_globe,
+                            selection_mode="points", config=dict(displaylogo=False, scrollZoom=True))
         st.caption("Each marker is one event at its conjunction latitude and altitude (from the data); size grows with "
                    "P(critical). Click a marker for its details. The data has no longitude, so events are spread "
                    "around the Earth evenly. The ring is the focus event's orbit at its real inclination. "
                    "Earth image: NASA Blue Marble.")
 
     popup = st.session_state.pop("popup", None)
-    if popup is not None and popup in label.index:
+    if popup is not None and popup in label_df.index:
         event_dialog(popup)
 
     # ---- countdown board
-    st.subheader("Countdown board")
+    st.markdown(section("02", "Countdown board", "time to closest approach vs probability of ending critical"),
+                unsafe_allow_html=True)
     board = win.assign(is_focus=win["event_id"] == focus)
     pick = alt.selection_point(name="pick", fields=["event_id"], on="click")
     pts = alt.Chart(board).mark_circle(stroke=BG, strokeWidth=1, opacity=0.85).encode(
@@ -285,13 +280,15 @@ with tab_main:
     cut = pd.DataFrame({"y": [meta["p_critical_cut"]], "label": [f"manoeuvre flag at {meta['p_critical_cut']:.0%}"]})
     rules = (alt.Chart(cut).mark_rule(strokeDash=[4, 4], color=RULE_INK).encode(y="y:Q")
              + alt.Chart(cut).mark_text(align="left", dy=-7, x=6, color=RULE_INK).encode(y="y:Q", text="label:N"))
-    st.altair_chart((pts + rules).properties(height=300), width="stretch", key="board",
-                    on_select=pick_from_board, selection_mode="pick")
+    with st.container(border=True, key="panel_board"):
+        st.altair_chart(theme=None, altair_chart=(pts + rules).properties(height=300), width="stretch", key="board",
+                        on_select=pick_from_board, selection_mode="pick")
     st.caption("Every event in the window. Right is closer to closest approach; higher is more likely to end critical. "
                "Click a point to focus it. The large point is the focus event.")
 
     # ---- warnings queue
-    st.subheader(f"Warnings queue · {len(QUEUE)} event(s)")
+    st.markdown(section("03", "Warnings queue", f"{len(QUEUE)} events · critical first, soonest first"),
+                unsafe_allow_html=True)
     qcols = ["tier", "event_id", "countdown", "p_crit_pct", "forecast_pc", "pred_final_miss", "miss_distance",
              "why", "rule_flip"] + (["final_tier_name"] if show_truth else [])
     st.dataframe(QUEUE[qcols], key="queue", on_select=pick_from_queue, selection_mode="single-row",
@@ -312,8 +309,8 @@ with tab_main:
     st.caption("Critical first, then elevated, soonest first. Select a row to focus the event.")
 
     # ---- deep dive: replay, history, orbit
-    st.divider()
-    st.header(f"Event {focus}")
+    st.markdown(section("04", f"Event {focus} · CDM history", "replay the forecast after each CDM"),
+                unsafe_allow_html=True)
     u = upd[upd["event_id"] == focus].sort_values("time_to_tca", ascending=False).reset_index(drop=True)
     labels = [f"CDM {int(n)} · {c}" for n, c in zip(u["n_cdms"], u["countdown"])]
     k = len(u) - 1
@@ -351,26 +348,26 @@ with tab_main:
 
     left, right = st.columns(2)
     with left:
-        st.markdown("**Collision probability (log10 Pc)**")
-        st.altair_chart(history_chart("risk", "pred_final_risk", "log10 Pc", False, pd.DataFrame(
+        st.markdown(label("Collision probability · log10 Pc"), unsafe_allow_html=True)
+        st.altair_chart(theme=None, altair_chart=history_chart("risk", "pred_final_risk", "log10 Pc", False, pd.DataFrame(
             {"y": [CRIT_LOG_PC, ELEV_LOG_PC], "label": ["critical: Pc 1e-4", "elevated: Pc 1e-6"]})), width="stretch")
     with right:
-        st.markdown("**Miss distance (m, log scale)**")
-        st.altair_chart(history_chart("miss_distance", "pred_final_miss", "miss distance (m)", True, pd.DataFrame(
+        st.markdown(label("Miss distance · m, log scale"), unsafe_allow_html=True)
+        st.altair_chart(theme=None, altair_chart=history_chart("miss_distance", "pred_final_miss", "miss distance (m)", True, pd.DataFrame(
             {"y": [CRIT_MISS_M, ELEV_MISS_M], "label": ["critical: 1 km", "elevated: 5 km"]})), width="stretch")
     pline = alt.Chart(u_seen).mark_line(strokeWidth=2, color=BLUE, point=alt.OverlayMarkDef(size=64, color=BLUE)).encode(
         x=x, y=alt.Y("p_critical:Q", title="P(critical)", axis=alt.Axis(format="%"), scale=alt.Scale(domain=[0, 1])),
         tooltip=[alt.Tooltip("countdown:N", title="time to closest approach"),
                  alt.Tooltip("p_critical:Q", title="P(critical)", format=".0%"),
                  alt.Tooltip("pred_tier:N", title="forecast tier")])
-    st.markdown("**P(final tier is critical), after each CDM**")
-    st.altair_chart((pline + rules).properties(height=170), width="stretch")
+    st.markdown(label("P(final tier critical) · after each CDM"), unsafe_allow_html=True)
+    st.altair_chart(theme=None, altair_chart=(pline + rules).properties(height=170), width="stretch")
     st.caption("Solid blue: values reported in each CDM. Dashed orange: the model's forecast of the final CDM after each "
                "CDM. Move the replay slider to step through the event. "
                + ("Diamond: the true final CDM." if show_truth else "Tick 'Show true final values' to add the true final CDM."))
 
     # ---- approach simulator: the selected event only; the figure's own slider animates it in the browser
-    st.subheader("Approach simulator")
+    st.markdown(section("05", "Approach simulator", "drag the slider or press play"), unsafe_allow_html=True)
     S, rel_pos, rel_vel, sig, missing = event_scene(row)
     ttc_s = float(row["time_to_tca"]) * 86400
     view = st.radio("Camera", ["Free orbit", "Face the conjunction", "Top down"], key=f"cam_{focus}", horizontal=True)
@@ -385,11 +382,12 @@ with tab_main:
         st.markdown('<div class="ov"><div class="ov-strip">' + "".join(
             f'<div class="ov-stat"><b>{b}</b><span>{s}</span></div>' for b, s in tiles) + "</div></div>",
             unsafe_allow_html=True)
-        st.plotly_chart(build_event_orbit(focus, row["pred_tier"], float(row["miss_distance"]),
-                                          float(row["pred_final_risk"]), S, ttc_s, view),
-                        width="stretch", key=f"orbit_{focus}_{k}",
-                        config=dict(displaylogo=False, scrollZoom=True,
-                                    modeBarButtonsToRemove=["resetCameraLastSave3d", "toImage"]))
+        with st.container(border=True, key="panel_sim"):
+            st.plotly_chart(build_event_orbit(focus, row["pred_tier"], float(row["miss_distance"]),
+                                              float(row["pred_final_risk"]), S, ttc_s, view),
+                            width="stretch", key=f"orbit_{focus}_{k}",
+                            config=dict(displaylogo=False, scrollZoom=True,
+                                        modeBarButtonsToRemove=["resetCameraLastSave3d", "toImage"]))
         st.caption("Drag the slider under the globe (or press Play) and the satellite (T) and debris (D) move "
                    "continuously towards closest approach; the label shows the time to collision and their "
                    "separation. Steps are even until T−20 min, then every 20 seconds for the final approach. "
@@ -405,7 +403,7 @@ with tab_main:
 
 # ---------------------------------------------------------------- all events
 with tab_all:
-    st.subheader("Forecast final Pc vs forecast final miss distance")
+    st.markdown(section("01", "Risk map", "forecast final Pc vs miss distance"), unsafe_allow_html=True)
     pts = win.assign(miss_plot=win["pred_final_miss"].clip(lower=1.0), risk_plot=win["pred_final_risk"].clip(lower=-10))
     sc = alt.Chart(pts).mark_circle(size=70, opacity=0.8, stroke=BG, strokeWidth=1).encode(
         x=alt.X("miss_plot:Q", scale=alt.Scale(type="log"), title="Forecast final miss distance (m, log scale)"),
@@ -422,11 +420,11 @@ with tab_all:
               + alt.Chart(vr).mark_text(align="left", dx=4, y=8, color=RULE_INK).encode(x="x:Q", text="label:N")
               + alt.Chart(hr).mark_rule(strokeDash=[4, 4], color=RULE_INK).encode(y="y:Q")
               + alt.Chart(hr).mark_text(align="left", dy=-6, x=4, color=RULE_INK).encode(y="y:Q", text="label:N"))
-    st.altair_chart((sc + bounds).properties(height=420), width="stretch")
+    st.altair_chart(theme=None, altair_chart=(sc + bounds).properties(height=420), width="stretch")
     st.caption("Dashed lines are the tier boundaries. Colour is the classifier's forecast tier, from calibrated "
                "probabilities, so an event on the safe side of both lines can still be flagged when its trend points "
                "towards a close approach. Pc below 1e-10 is drawn at -10.")
-    st.subheader(f"All {len(win):,} events in the window")
+    st.markdown(section("02", "All events", f"{len(win):,} events in the window"), unsafe_allow_html=True)
     cols = ["tier", "event_id", "countdown", "p_crit_pct", "forecast_pc", "pred_final_miss", "latest_pc",
             "miss_distance", "why", "rule_flip"] + (["final_tier_name"] if show_truth else [])
     st.dataframe(win[cols], hide_index=True, width="stretch", column_config={
@@ -445,6 +443,7 @@ with tab_all:
 # ---------------------------------------------------------------- evaluation & method
 with tab_eval:
     m, b = metrics["model"], metrics["persistence baseline"]
+    st.markdown(section("01", "Model vs baseline", "test set, per event"), unsafe_allow_html=True)
     st.markdown(f"Test set: **{metrics['test events']:,} events**, {metrics['events scored (2+ CDMs)']:,} scored "
                 f"per event on the forecast made after the second-to-last CDM; "
                 f"{metrics['events not forecastable (only 1 CDM)']} events have a single CDM and cannot be forecast. "
@@ -454,9 +453,9 @@ with tab_eval:
     tbl = pd.DataFrame({"model": [m[k] for k in keys], "persistence baseline": [b[k] for k in keys]}, index=keys)
     left, right = st.columns(2)
     with left:
-        st.markdown("**Final-tier forecast, per event**")
+        st.markdown(label("Final-tier forecast · per event"), unsafe_allow_html=True)
         st.dataframe(tbl.style.format(lambda v: f"{v:,.0f}" if float(v).is_integer() else f"{v:.3f}"), width="stretch")
-        st.markdown("**Regression RMSE (log10 units)**")
+        st.markdown(label("Regression RMSE · log10 units"), unsafe_allow_html=True)
         st.dataframe(pd.Series(metrics["regression RMSE"], name="RMSE").round(3), width="stretch")
         st.markdown(f"**Probabilities:** log loss {metrics['probabilities']['log loss']:.3f}, "
                     f"multiclass Brier {metrics['probabilities']['Brier (multiclass)']:.3f}")
@@ -464,10 +463,10 @@ with tab_eval:
         names = ["safe", "elevated", "critical"]
         key = "confusion (rows true, cols pred: safe, elevated, critical)"
         for title, mm in [("Model", m), ("Persistence baseline", b)]:
-            st.markdown(f"**Confusion matrix, {title}** (rows true, columns predicted)")
+            st.markdown(label(f"Confusion matrix · {title} · rows true, columns predicted"), unsafe_allow_html=True)
             st.dataframe(pd.DataFrame(mm[key], index=[f"true {n}" for n in names], columns=names), width="stretch")
 
-    st.subheader("Calibration of P(critical)")
+    st.markdown(section("02", "Calibration", "can P(critical) be read at face value?"), unsafe_allow_html=True)
     cal_line = alt.Chart(cal).mark_line(strokeWidth=2, color=BLUE, point=alt.OverlayMarkDef(size=80, color=BLUE)).encode(
         x=alt.X("mean_predicted:Q", title="Mean predicted P(critical)", scale=alt.Scale(domain=[0, 1]),
                 axis=alt.Axis(format="%")),
@@ -477,12 +476,12 @@ with tab_eval:
                  alt.Tooltip("observed_rate:Q", format=".1%")])
     diag = alt.Chart(pd.DataFrame({"a": [0, 1]})).mark_line(strokeDash=[4, 4], color=RULE_INK).encode(x="a:Q", y="a:Q")
     c1, c2 = st.columns([3, 2])
-    c1.altair_chart((diag + cal_line).properties(height=300), width="stretch")
+    c1.altair_chart(theme=None, altair_chart=(diag + cal_line).properties(height=300), width="stretch")
     c2.dataframe(cal, hide_index=True, width="stretch")
     c2.caption("Points on the dashed diagonal mean the probability can be read at face value. "
                "Bins with few events are noisy.")
 
-    st.subheader("Feature choice")
+    st.markdown(section("03", "Feature choice", "grouped 5-fold CV on training data"), unsafe_allow_html=True)
     st.markdown("The brief's suggested columns describe one CDM. Two kinds of extra information were tested by "
                 "grouped 5-fold cross-validation on the training data only: (B) the latest CDM's own Pc and tier "
                 "plus how risk and miss distance have moved across the event's CDMs, and (C) the full position "
@@ -494,10 +493,10 @@ with tab_eval:
         x=alt.X("gain share:Q", title="Share of total gain", axis=alt.Axis(format="%")),
         y=alt.Y("feature:N", sort="-x", title=None),
         tooltip=["feature", alt.Tooltip("gain share:Q", format=".1%")])
-    st.markdown("**Top 15 features in the final classifier**")
-    st.altair_chart(bars.properties(height=360), width="stretch")
+    st.markdown(label("Top 15 features · final classifier"), unsafe_allow_html=True)
+    st.altair_chart(theme=None, altair_chart=bars.properties(height=360), width="stretch")
 
-    st.subheader("Known limits")
+    st.markdown(section("04", "Known limits", ""), unsafe_allow_html=True)
     st.markdown(f"""
 - The test file stops 2 days before closest approach, so "final" means each event's last CDM at ≥ 2 days, not the
   CDM at closest approach. Training uses the same cut so both sets are built the same way.

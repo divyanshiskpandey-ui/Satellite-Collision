@@ -25,14 +25,14 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from common import RISK_FLOOR
+from style import CSS, FONT, HAIRLINE_2, INK, MONO, MUTED, SURFACE, SURFACE_2, TIER_COL, section
 
 EARTH_IMAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "blue_marble_2048.jpg")
 MU = 398600.4418          # km^3 / s^2
 R_E = 6371.0              # km
-BG = "#05080f"
-INK, MUTED, PANEL, LINE = "#eaf1ff", "#8393b3", "#0e1626", "#1d2a44"
+BG = SURFACE                       # charts sit inside panels of the same colour
+PANEL, LINE = SURFACE_2, HAIRLINE_2
 COL_A, COL_B = "#5ad1ff", "#ff8fd0"
-TIER_COL = {"critical": "#d03b3b", "elevated": "#fab219", "safe": "#0ca30c"}   # same status colours as app.py
 # Earth surface palette: deep ocean -> shallow water -> beach -> grass -> forest -> rock -> ice
 EARTH_SCALE = [[0.0, "#031026"], [0.2, "#07295c"], [0.38, "#0d4f9c"], [0.485, "#38a6dd"],
                [0.505, "#d8c58f"], [0.545, "#7fae5a"], [0.65, "#3f8a45"], [0.78, "#2c6a37"],
@@ -41,27 +41,7 @@ EARTH_SCALE = [[0.0, "#031026"], [0.2, "#07295c"], [0.38, "#0d4f9c"], [0.485, "#
 REQUIRED = ["relative_position_r", "relative_position_t", "relative_position_n",
             "relative_velocity_r", "relative_velocity_t", "relative_velocity_n", "t_j2k_sma"]
 
-CSS = """
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap');
-.ov, .ov * { font-family: 'Space Grotesk', system-ui, sans-serif; box-sizing: border-box; }
-.ov-strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:6px 0 14px; }
-.ov-stat { background:#0e1626; border:1px solid #1d2a44; border-radius:10px; padding:12px 14px; }
-.ov-stat b { display:block; font-size:1.3rem; color:#eaf1ff; font-weight:700; font-variant-numeric:tabular-nums; }
-.ov-stat span { font-size:.8rem; color:#8393b3; }
-.ov-status { background:#0e1626; border:1px solid #1d2a44; border-left:5px solid var(--tier);
-             border-radius:10px; padding:14px 16px; margin-bottom:12px; }
-.ov-status .tier { color:var(--tier); font-weight:700; font-size:.95rem; }
-.ov-status .count { color:#eaf1ff; font-weight:700; font-size:2rem; line-height:1.15; font-variant-numeric:tabular-nums; }
-.ov-status .sub { color:#8393b3; font-size:.85rem; margin-top:2px; }
-.ov-step { background:#0e1626; border:1px solid #1d2a44; border-radius:10px; padding:10px 14px; margin-bottom:8px; }
-.ov-step .t { color:#eaf1ff; font-weight:700; font-size:.98rem; }
-.ov-step .w { color:var(--tier); font-size:.8rem; font-weight:500; margin-left:6px; }
-.ov-step .d { color:#aab8d6; font-size:.86rem; line-height:1.45; margin-top:3px; }
-.ov-step.done { opacity:.45; }
-.ov-step.done .t { text-decoration:line-through; }
-</style>
-"""
+
 
 
 # ---------------------------------------------------------------- helpers
@@ -385,22 +365,23 @@ def build_event_orbit(ev, tier, miss_m, pred_risk, S, ttc_s, view):
     axis = dict(visible=False, range=[-L, L], showbackground=False)
     fig = go.Figure(data=traces, frames=frames)
     fig.update_layout(
-        height=680, margin=dict(l=0, r=0, t=0, b=80), paper_bgcolor=BG, font=dict(color=INK),
+        height=680, margin=dict(l=0, r=0, t=0, b=80), paper_bgcolor=BG, font=dict(color=INK, family=FONT),
         uirevision=f"{ev}-{view}",
         scene=dict(xaxis=axis, yaxis=axis, zaxis=axis, aspectmode="cube", bgcolor=BG, dragmode="orbit",
                    camera=dict(eye=eyes[view], up=dict(x=0, y=0, z=1))),
         legend=dict(x=0.01, y=0.99, bgcolor="rgba(14,22,38,0.75)", bordercolor=LINE, borderwidth=1,
-                    font=dict(size=12, color=INK)),
+                    font=dict(size=12, color=INK, family=FONT)),
         updatemenus=[dict(type="buttons", direction="left", x=0.0, y=0.0, xanchor="left", yanchor="top",
-                          pad=dict(t=10, l=4), bgcolor=PANEL, bordercolor=LINE, font=dict(color=INK), buttons=[
-                              dict(label="▶ Play", method="animate",
+                          pad=dict(t=10, l=4), showactive=False, bgcolor=PANEL, bordercolor=LINE, borderwidth=1,
+                          font=dict(color=INK, family=FONT, size=11), buttons=[
+                              dict(label="▶  PLAY", method="animate",
                                    args=[None, dict(fromcurrent=True, mode="immediate", transition=dict(duration=0),
                                                     frame=dict(duration=45, redraw=True))]),
-                              dict(label="❚❚ Pause", method="animate",
+                              dict(label="❚❚  PAUSE", method="animate",
                                    args=[[None], dict(mode="immediate", transition=dict(duration=0),
                                                       frame=dict(duration=0, redraw=False))])])],
         sliders=[dict(active=0, steps=steps, x=0.16, y=0.0, len=0.83, pad=dict(t=10, b=0),
-                      currentvalue=dict(prefix="Time to collision: ", font=dict(color=INK, size=15)),
+                      currentvalue=dict(prefix="Time to collision: ", font=dict(color=INK, size=15, family=MONO)),
                       font=dict(color="rgba(0,0,0,0)"), ticklen=0, tickcolor="rgba(0,0,0,0)",
                       bgcolor=LINE, bordercolor=LINE, activebgcolor=COL_B)])
     return fig
@@ -498,22 +479,23 @@ def build_orbit_figure(ev, tier, ttc_days, miss_m, pred_risk, S, frame_k, view):
     axis = dict(visible=False, range=[-L, L], showbackground=False)
     fig = go.Figure(data=traces, frames=frames)
     fig.update_layout(
-        height=700, margin=dict(l=0, r=0, t=0, b=70), paper_bgcolor=BG, font=dict(color=INK),
+        height=700, margin=dict(l=0, r=0, t=0, b=70), paper_bgcolor=BG, font=dict(color=INK, family=FONT),
         scene=dict(xaxis=axis, yaxis=axis, zaxis=axis, aspectmode="cube", bgcolor=BG, dragmode="orbit",
                    camera=dict(eye=eyes[view], up=dict(x=0, y=0, z=1))),
         legend=dict(x=0.01, y=0.99, bgcolor="rgba(14,22,38,0.75)", bordercolor=LINE, borderwidth=1,
-                    font=dict(size=12, color=INK)),
+                    font=dict(size=12, color=INK, family=FONT)),
         updatemenus=[dict(type="buttons", direction="left", x=0.0, y=0.0, xanchor="left", yanchor="top",
-                          pad=dict(t=8, l=4), bgcolor=PANEL, bordercolor=LINE, font=dict(color=INK),
+                          pad=dict(t=8, l=4), showactive=False, bgcolor=PANEL, bordercolor=LINE, borderwidth=1,
+                          font=dict(color=INK, family=FONT, size=11),
                           buttons=[
-                              dict(label="Play", method="animate",
+                              dict(label="▶  PLAY", method="animate",
                                    args=[None, dict(fromcurrent=True, mode="immediate", transition=dict(duration=0),
                                                     frame=dict(duration=35, redraw=True))]),
-                              dict(label="Pause", method="animate",
+                              dict(label="❚❚  PAUSE", method="animate",
                                    args=[[None], dict(mode="immediate", transition=dict(duration=0),
                                                       frame=dict(duration=0, redraw=False))])])],
         sliders=[dict(active=0, steps=steps, x=0.17, y=0.0, len=0.81, pad=dict(t=8, b=0),
-                      currentvalue=dict(prefix="Time to closest approach: ", font=dict(color=INK, size=13)),
+                      currentvalue=dict(prefix="Time to closest approach: ", font=dict(color=INK, size=13, family=MONO)),
                       font=dict(color="rgba(0,0,0,0)"), ticklen=0, tickcolor="rgba(0,0,0,0)",
                       bgcolor=LINE, bordercolor=LINE, activebgcolor=COL_A)],
     )
@@ -575,19 +557,20 @@ def build_fleet_globe(ev, focus_id=None, height=600):
     axis = dict(visible=False, range=[-L, L], showbackground=False)
     fig = go.Figure(data=traces, frames=frames)
     fig.update_layout(
-        height=height, margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor=BG, font=dict(color=INK),
+        height=height, margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor=BG, font=dict(color=INK, family=FONT),
         uirevision=f"globe-{focus_id}", clickmode="event+select",
         hoverlabel=dict(bgcolor=PANEL, bordercolor=LINE, font=dict(color=INK, size=13)),
         scene=dict(xaxis=axis, yaxis=axis, zaxis=axis, aspectmode="cube", bgcolor=BG, dragmode="orbit",
                    camera=dict(eye=dict(x=float(eye[0]), y=float(eye[1]), z=float(eye[2])), up=dict(x=0, y=0, z=1))),
         legend=dict(x=0.01, y=0.99, bgcolor="rgba(14,22,38,0.75)", bordercolor=LINE, borderwidth=1,
-                    font=dict(size=12, color=INK)),
+                    font=dict(size=12, color=INK, family=FONT)),
         updatemenus=[dict(type="buttons", direction="left", x=0.01, y=0.02, xanchor="left", yanchor="bottom",
-                          bgcolor=PANEL, bordercolor=LINE, font=dict(color=INK), buttons=[
-                              dict(label="Spin", method="animate",
+                          showactive=False, bgcolor=PANEL, bordercolor=LINE, borderwidth=1,
+                          font=dict(color=INK, family=FONT, size=11), buttons=[
+                              dict(label="⟳  SPIN", method="animate",
                                    args=[None, dict(fromcurrent=True, mode="immediate", transition=dict(duration=0),
                                                     frame=dict(duration=60, redraw=True))]),
-                              dict(label="Stop", method="animate",
+                              dict(label="■  STOP", method="animate",
                                    args=[[None], dict(mode="immediate", transition=dict(duration=0),
                                                       frame=dict(duration=0, redraw=False))])])])
     return fig
@@ -713,22 +696,23 @@ def build_close_figure(tier, miss_m, rel_pos, rel_vel, sig, C=None, sat_speed=No
     ax = dict(backgroundcolor=BG, gridcolor=LINE, zerolinecolor=MUTED, color=MUTED, showspikes=False)
     fig = go.Figure(data=data, frames=frames)
     fig.update_layout(
-        height=600, margin=dict(l=0, r=0, t=0, b=60), paper_bgcolor=BG, font=dict(color=INK),
+        height=600, margin=dict(l=0, r=0, t=0, b=60), paper_bgcolor=BG, font=dict(color=INK, family=FONT),
         scene=dict(xaxis=dict(title="Radial (m)", **ax), yaxis=dict(title="Along-track (m)", **ax),
                    zaxis=dict(title="Cross-track (m)", **ax), aspectmode="data", bgcolor=BG, dragmode="orbit",
                    camera=dict(eye=dict(x=1.5, y=1.3, z=0.9))),
         legend=dict(x=0.01, y=0.99, bgcolor="rgba(14,22,38,0.75)", bordercolor=LINE, borderwidth=1,
-                    font=dict(size=12, color=INK)),
+                    font=dict(size=12, color=INK, family=FONT)),
         updatemenus=[dict(type="buttons", direction="left", x=0.0, y=0.0, xanchor="left", yanchor="top",
-                          pad=dict(t=8, l=4), bgcolor=PANEL, bordercolor=LINE, font=dict(color=INK), buttons=[
-                              dict(label="Play fly-by", method="animate",
+                          pad=dict(t=8, l=4), showactive=False, bgcolor=PANEL, bordercolor=LINE, borderwidth=1,
+                          font=dict(color=INK, family=FONT, size=11), buttons=[
+                              dict(label="▶  PLAY FLY-BY", method="animate",
                                    args=[None, dict(fromcurrent=True, mode="immediate", transition=dict(duration=0),
                                                     frame=dict(duration=70, redraw=True))]),
-                              dict(label="Pause", method="animate",
+                              dict(label="❚❚  PAUSE", method="animate",
                                    args=[[None], dict(mode="immediate", transition=dict(duration=0),
                                                       frame=dict(duration=0, redraw=False))])])],
         sliders=[dict(active=0, steps=steps, x=0.2, y=0.0, len=0.78, pad=dict(t=8, b=0),
-                      currentvalue=dict(prefix="", font=dict(color=INK, size=13)),
+                      currentvalue=dict(prefix="", font=dict(color=INK, size=13, family=MONO)),
                       font=dict(color="rgba(0,0,0,0)"), ticklen=0, tickcolor="rgba(0,0,0,0)",
                       bgcolor=LINE, bordercolor=LINE, activebgcolor=COL_B)])
     return fig
@@ -770,12 +754,12 @@ def build_encounter_plane(tier, miss_m, E):
                        yshift=14, font=dict(color=INK, size=13), bgcolor="rgba(14,22,38,0.8)")
     ax = dict(gridcolor=LINE, zerolinecolor=LINE, color=MUTED)
     fig.update_layout(
-        height=600, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor=BG, plot_bgcolor=BG, font=dict(color=INK),
+        height=600, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor=BG, plot_bgcolor=BG, font=dict(color=INK, family=FONT),
         xaxis=dict(title="Along the miss direction (m)", range=[c[0] - half, c[0] + half], **ax),
         yaxis=dict(title="Perpendicular, in the encounter plane (m)", range=[c[1] - half, c[1] + half],
                    scaleanchor="x", scaleratio=1, **ax),
         legend=dict(x=0.01, y=0.99, bgcolor="rgba(14,22,38,0.75)", bordercolor=LINE, borderwidth=1,
-                    font=dict(size=12, color=INK)))
+                    font=dict(size=12, color=INK, family=FONT)))
     return fig
 
 
@@ -837,7 +821,7 @@ def _plan(tier, rule_flip, ttc_h, dec_h, burn_h, dv_ms, target_km, crit_cut):
 
 
 # ---------------------------------------------------------------- Streamlit entry
-def render_orbit_section(row, cuts, show_orbit=True):
+def render_orbit_section(row, cuts, show_orbit=True, num="06"):
     """row: one CDM of the selected event, with all its CSV columns.
     show_orbit=False skips the global orbit figure (when the page already shows one) and keeps the
     to-scale close approach and the response plan."""
@@ -852,7 +836,8 @@ def render_orbit_section(row, cuts, show_orbit=True):
     n_frames = max(1, math.ceil(ttc_h / 24))
     col = TIER_COL.get(tier, "#fff")
 
-    st.subheader("Orbit view and response plan" if show_orbit else "Close approach and response plan")
+    st.markdown(section(num, "Orbit view and response plan" if show_orbit else "Close approach & response plan",
+                        "the encounter at metre scale, and what to do about it"), unsafe_allow_html=True)
 
     # ---- real geometry from the event's own columns
     S, rel_pos, rel_vel, sig, missing = event_scene(row)

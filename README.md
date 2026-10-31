@@ -199,6 +199,7 @@ python tests/test_pipeline.py     # checks (also runs with pytest)
 ```
 ├── app.py                    Streamlit dashboard
 ├── orbit_view.py             3D Earth, approach simulator, close-approach views, response plan
+├── style.py                  design system: palette, typography, page CSS, chart theme
 ├── common.py                 tier rule, example and feature building, metrics (shared by everything)
 ├── train.py                  training pipeline (training data only)
 ├── evaluate.py               scores the test set, writes the dashboard's inputs
